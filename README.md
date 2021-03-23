@@ -16,9 +16,7 @@
     3. [Git Graph](https://marketplace.visualstudio.com/items?itemName=mhutchie.git-graph)
     4. [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client)
 5. Clone the repository ([How to clone a repository](https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository))
-6. Open a terminal at the folder path
-7. Run `npm install`
-8. Create a new file in the root directory `.env` (Note the dot at the front) and paste the following values into the file:
+6. Create a new file in the root directory `.env` (Note the dot at the front) and paste the following values into the file:
 
     ```
     DB_HOST=localhost
@@ -33,14 +31,15 @@
 
 ## Instructions
 
-1.  First thing you would want to do is to run
+1.  Clone this repository
+2.  First thing you would want to do is to run
 
     ```
     npm init
     ```
 
-2.  Following the above diagram, we are going to start with components that do not have any arrows pointing towards them. Thus we will start with the actual `database`
-3.  If you open up `docker-compose.yml`, you may see the following line:
+3.  Following the above diagram, we are going to start with components that do not have any arrows pointing towards them. Thus we will start with the actual `database`
+4.  If you open up `docker-compose.yml`, you may see the following line:
 
     ```
     ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -50,8 +49,8 @@
 
     This happens to be the sql file that the image will execute during initialization of the database. Thus we will add our `CREATE TABLE` script inside that file.
 
-4.  Create a new folder named `database` and inside the folder, create a new file `init.sql`
-5.  Looking at the diagram, we are expecting to support 2 table, `queue_tab` and `error_tab`, we will create `queue_tab` first and worry about `error_tab` later. Put the following code into `init.sql`
+5.  Create a new folder named `database` and inside the folder, create a new file `init.sql`
+6.  Looking at the diagram, we are expecting to support 2 table, `queue_tab` and `error_tab`, we will create `queue_tab` first and worry about `error_tab` later. Put the following code into `init.sql`
 
     ```sql
     CREATE TABLE queue_tab (
@@ -60,7 +59,7 @@
     );
     ```
 
-6.  If you followed the setup instructions you should have created a `.env` file in the root directory with the following values:
+7.  If you followed the setup instructions you should have created a `.env` file in the root directory with the following values:
 
     ```
     DB_HOST=localhost
@@ -71,7 +70,7 @@
     DB_TEST_PORT=6543
     ```
 
-7.  Run the following command to start up the database:
+8.  Run the following command to start up the database:
 
     ```
     docker-compose up
@@ -79,23 +78,23 @@
 
     You should observe that there are 4 `CREATE` (2 in `db` and 2 in `db-test`). And it ends with `database is ready to accept connections`
 
-8.  We have setup the actual `database`, we will now write javascript to establish connection with the `database` in a file named `database.js`
-9.  In the `database` folder, create a new file `database.js`.
-10. We will be using [`node-postgres`](https://node-postgres.com/) as the interface between our application and the database. Install it by running the following command:
+9.  We have setup the actual `database`, we will now write javascript to establish connection with the `database` in a file named `database.js`
+10. In the `database` folder, create a new file `database.js`.
+11. We will be using [`node-postgres`](https://node-postgres.com/) as the interface between our application and the database. Install it by running the following command:
     ```
     npm install pg
     ```
-11. Going to the [`connecting` page](https://node-postgres.com/features/connecting) of the node-postgres API. It suggests that we can use either `Pool` or `Client` to establish connection with the database.
+12. Going to the [`connecting` page](https://node-postgres.com/features/connecting) of the node-postgres API. It suggests that we can use either `Pool` or `Client` to establish connection with the database.
 
     > -   Client: a single connection with the database
     > -   Pool: a set of Clients being reused over and over again
 
     In our application, we will be using a `Pool`.
 
-12. Reading the documentation on `connecting` further, it mentions that `pg` have 2 option for specifying the database's information to establish connection
+13. Reading the documentation on `connecting` further, it mentions that `pg` have 2 option for specifying the database's information to establish connection
     1. from environment variable OR
     2. programmatically. (We will do this).
-13. Since these values are constants (unchanging throughout the app's lifecycle), let us create them in a `commons` file. Create a file `commons.js` in the root directory and enter the following values:
+14. Since these values are constants (unchanging throughout the app's lifecycle), let us create them in a `commons` file. Create a file `commons.js` in the root directory and enter the following values:
 
     ```js
     module.exports.DB_CONFIG = {
@@ -108,7 +107,7 @@
     };
     ```
 
-14. Note that we are still referencing data from the environment, thus we need to load the values in the `.env` file into the environment. We will use the `dotenv` npm package to assist us with loading environment variable.
+15. Note that we are still referencing data from the environment, thus we need to load the values in the `.env` file into the environment. We will use the `dotenv` npm package to assist us with loading environment variable.
 
     Install the `dotenv` npm package
 
@@ -122,7 +121,7 @@
     require('dotenv').config();
     ```
 
-15. We will now be able to create the connections. Create a new file `database.js` in the `database` folder and include the following lines:
+16. We will now be able to create the connections. Create a new file `database.js` in the `database` folder and include the following lines:
 
     ```js
     const { Pool } = require('pg');
@@ -137,7 +136,7 @@
 
     > Can you see that `new Pool()` is called only once regardless of how many times `getPool()` is invoked?
 
-16. We can test our file by running this file in our terminal, open a terminal and run the following commands:
+17. We can test our file by running this file in our terminal, open a terminal and run the following commands:
 
     ```
     node
@@ -157,7 +156,7 @@
 
     You should observe an empty array as there are no rows in the table yet.
 
-17. Now that we are able to establish connection with the actual database, we can now prepare the `db_manager` to provide us with some methods to interact with the database. Create a new directory `managers` and inside, create a file `db_manager.js` with the following lines:
+18. Now that we are able to establish connection with the actual database, we can now prepare the `db_manager` to provide us with some methods to interact with the database. Create a new directory `managers` and inside, create a file `db_manager.js` with the following lines:
 
         ```js
         const { getPool } = require('../database/database');
@@ -165,7 +164,7 @@
         const pool = getPool();
         ```
 
-18. Recall that one of the basic feature of this backend is to allow enqueueing and dequeueing. We will start with enqueueing, enter the following lines into `db_manager.js`
+19. Recall that one of the basic feature of this backend is to allow enqueueing and dequeueing. We will start with enqueueing, enter the following lines into `db_manager.js`
 
     ```js
     module.exports.enqueue = function () {
@@ -184,7 +183,7 @@
     > -   What is the return value of the method?
     > -   What does the resolved value represent?
 
-19. Next for dequeue;
+20. Next for dequeue;
 
     ```js
     return pool
@@ -201,7 +200,7 @@
         .then((result) => (!result.rows.length ? 0 : result.rows[0].id));
     ```
 
-20. We can once again test that the file has been set up correctly by running it on a Node terminal.
+21. We can once again test that the file has been set up correctly by running it on a Node terminal.
 
     ```
     node
@@ -218,7 +217,7 @@
     const pool = getPool();
     ```
 
-21. We want to try enqueueing a few entities and check the number of rows in the database afterwards, (i.e. calling enqueueing 3 times should later show that there are 3 rows.)
+22. We want to try enqueueing a few entities and check the number of rows in the database afterwards, (i.e. calling enqueueing 3 times should later show that there are 3 rows.)
 
     ```js
     dbManager
@@ -249,7 +248,7 @@
     Should see 3 rows, Number of rows: 3
     ```
 
-22. We can also simply print out all the rows to check that they are all not served
+23. We can also simply print out all the rows to check that they are all not served
 
     ```js
     pool.query('select * from queue_tab').then(function (result) {
@@ -267,7 +266,7 @@
     ]
     ```
 
-23. We can next test the `dequeue` function. (i.e. calling dequeue 2 times should serve entity 1 and 2).
+24. We can next test the `dequeue` function. (i.e. calling dequeue 2 times should serve entity 1 and 2).
 
     ```js
     dbManager
@@ -297,8 +296,8 @@
     ]
     ```
 
-24. We can be confident of the `dequeue` method only after we have tested all of it's expected behavior. Specifically, what happens when we try to dequeue an empty queue? Do we get an error? Do we get a number? Try running a script in the Node terminal to test the behavior.
-25. Now that our `db_manager` is ready, we can start to prepare our `queue_manager`. Create a new file `queue_manager.js` with the following lines:
+25. We can be confident of the `dequeue` method only after we have tested all of it's expected behavior. Specifically, what happens when we try to dequeue an empty queue? Do we get an error? Do we get a number? Try running a script in the Node terminal to test the behavior.
+26. Now that our `db_manager` is ready, we can start to prepare our `queue_manager`. Create a new file `queue_manager.js` with the following lines:
 
     ```js
     const dbManager = require('./db_manager');
@@ -308,9 +307,9 @@
     };
     ```
 
-26. Following the example of `enqueue`, you should be able to implement `dequeue` as well.
-27. The `queue_manager` is simple enough, write some scripts to ensure that the `enqueue` and `dequeue` of the `queue_manager` is working as expected.
-28. We will now prepare the `app.js` and `router.js`. Firstly, create a new file `app.js` and include the following lines:
+27. Following the example of `enqueue`, you should be able to implement `dequeue` as well.
+28. The `queue_manager` is simple enough, write some scripts to ensure that the `enqueue` and `dequeue` of the `queue_manager` is working as expected.
+29. We will now prepare the `app.js` and `router.js`. Firstly, create a new file `app.js` and include the following lines:
 
     ```js
     const express = require('express');
@@ -322,7 +321,7 @@
     module.exports = { app, server };
     ```
 
-29. Now create a new file `router.js` and add the following lines:
+30. Now create a new file `router.js` and add the following lines:
 
     ```js
     const cors = require('cors');
@@ -331,7 +330,7 @@
 
     These are the modules we require to build the application.
 
-30. Let us first create a middleware to allow us to perform some testing. Enter the following lines:
+31. Let us first create a middleware to allow us to perform some testing. Enter the following lines:
 
     ```js
     app.get('/', function (req, res, next) {
@@ -353,7 +352,7 @@
     });
     ```
 
-31. Create a new file `www` this is the file we will execute to start our server, inside the file include the following lines:
+32. Create a new file `www` this is the file we will execute to start our server, inside the file include the following lines:
 
     ```js
     const commons = require('./commons');
@@ -365,14 +364,14 @@
     });
     ```
 
-32. In order to test the middleware we created, we will start the server and send some HTTP request. Start the server by running the following command:
+33. In order to test the middleware we created, we will start the server and send some HTTP request. Start the server by running the following command:
 
     ```
     node ./www
     ```
 
-33. If you followed the setup instructions, you should have installed the [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) plugin.
-34. Create a new folder `test` and inside create another folder `http`. Inside the `http` folder, create a new file `enqueue-dequeue.test.http` with the following lines:
+34. If you followed the setup instructions, you should have installed the [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) plugin.
+35. Create a new folder `test` and inside create another folder `http`. Inside the `http` folder, create a new file `enqueue-dequeue.test.http` with the following lines:
 
     ```http
     @host = http://localhost:3000
@@ -382,12 +381,12 @@
     GET {{host}} HTTP/1.1
     ```
 
-35. You should see a `send request` on top of `POST ...`, click on it to send a HTTP request to our server.
+36. You should see a `send request` on top of `POST ...`, click on it to send a HTTP request to our server.
 
     You should then see a success response with the JSON we specified earlier.
 
-36. Now we know that are app is functional, it is time to prepare the routes to hook our business logic to the app.
-37. Create a new directory `routes` and inside the folder, create a new file `queue-route.js` with the following lines:
+37. Now we know that are app is functional, it is time to prepare the routes to hook our business logic to the app.
+38. Create a new directory `routes` and inside the folder, create a new file `queue-route.js` with the following lines:
 
     ```js
     const express = require('express');
@@ -406,8 +405,8 @@
 
     > Which API is this for? enqueue? or dequeue?
 
-38. Following the above example, create another middleware for the other API. (Hint: What's the Request Method? Which method do we call? How about the response status?)
-39. Back in `routes.js` add the following lines:
+39. Following the above example, create another middleware for the other API. (Hint: What's the Request Method? Which method do we call? How about the response status?)
+40. Back in `routes.js` add the following lines:
 
     ```js
     // near the top of the file
@@ -417,7 +416,7 @@
     app.use('/queue', queueRoute);
     ```
 
-40. Time to test our application, open up `enqueue-dequeue.test.http` once again and add the following request:
+41. Time to test our application, open up `enqueue-dequeue.test.http` once again and add the following request:
 
     ```
     ### Enqueue
@@ -425,10 +424,10 @@
     POST {{host}}/queue HTTP/1.1
     ```
 
-41. Send the Enqueue request, using Node terminal, verify that a new row has indeed been added. Repeat this 2 steps again if you need to do a proper verification.
-42. Add another request in `enqueue-dequeue.test.http` for dequeue. Run it and check it in the Node Environment.
-43. We have successfully implemented & tested the happy flow of `enqueue` and `dequeue`.
-44. What happens if we send a request that is not defined within our app? For example:
+42. Send the Enqueue request, using Node terminal, verify that a new row has indeed been added. Repeat this 2 steps again if you need to do a proper verification.
+43. Add another request in `enqueue-dequeue.test.http` for dequeue. Run it and check it in the Node Environment.
+44. We have successfully implemented & tested the happy flow of `enqueue` and `dequeue`.
+45. What happens if we send a request that is not defined within our app? For example:
 
     ```
     ### Not Found
@@ -438,7 +437,7 @@
 
     We will now write some error handling mechanism.
 
-45. Let's first create another file `errors.js` to store our error definitions. In the file, add the following lines:
+46. Let's first create another file `errors.js` to store our error definitions. In the file, add the following lines:
 
     ```js
     /* eslint-disable max-classes-per-file */
@@ -450,14 +449,14 @@
     module.exports.UrlNotFoundError = class UrlNotFoundError extends Error {};
     ```
 
-46. Return to `routes.js` and import the 2 error definition near the top of the file we just created:
+47. Return to `routes.js` and import the 2 error definition near the top of the file we just created:
 
     ```js
     // near the top of the file
     const { ERROR_CODE, ...errors } = require('./errors');
     ```
 
-47. Still in `routes.js` add the following lines at the bottom of the file. (Try it: What happen if you add it before the first middleware?)
+48. Still in `routes.js` add the following lines at the bottom of the file. (Try it: What happen if you add it before the first middleware?)
 
     ```js
     // 404
@@ -489,5 +488,5 @@
     });
     ```
 
-48. Now run the request to trigger a 404 again. Observe the difference.
-49. And that's it, you now have a minimally working backend to support enqueue and dequeue.
+49. Now run the request to trigger a 404 again. Observe the difference.
+50. And that's it, you now have a minimally working backend to support enqueue and dequeue.
