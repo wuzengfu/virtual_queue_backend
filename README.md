@@ -38,19 +38,22 @@
     npm init
     ```
 
-3.  Following the above diagram, we are going to start with components that do not have any arrows pointing towards them. Thus we will start with the actual `database`
-4.  If you open up `docker-compose.yml`, you may see the following line:
+3.  Following the above diagram, we are going to start with components that do not have any arrows coming out of them. Thus we will start with the actual `database`
+4.  If you open up `docker-compose.yml`, you may see the following lines:
 
     ```
-    ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    volumes:
+        ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
     ```
 
     This line tells docker to put the file `./database/init.sql` into the container at the directory `/docker-entrypoint-initdb.d/` with the file name `init.sql`.
 
-    This happens to be the sql file that the image will execute during initialization of the database. Thus we will add our `CREATE TABLE` script inside that file.
+    This happens to be the sql file that the docker image will execute during initialization of the database. Thus we will add our `CREATE TABLE` script inside that file.
 
 5.  Create a new folder named `database` and inside the folder, create a new file `init.sql`
-6.  Looking at the diagram, we are expecting to support 2 table, `queue_tab` and `error_tab`, we will create `queue_tab` first and worry about `error_tab` later. Put the following code into `init.sql`
+6.  Looking at the diagram, we know that there is a table `queue_tab` with some attributes. Put the following lines into `init.sql`
+
+    ![component-diagram](assets/component-diagram.png)
 
     ```sql
     CREATE TABLE queue_tab (
@@ -76,10 +79,49 @@
     docker-compose up
     ```
 
-    You should observe that there are 4 `CREATE` (2 in `db` and 2 in `db-test`). And it ends with `database is ready to accept connections`
+    You should observe that there are 4 `CREATE` (2 in `db` and 2 in `db-test`). And it ends with `database is ready to accept connections`, e.g.
 
-9.  We have setup the actual `database`, we will now write javascript to establish connection with the `database` in a file named `database.js`
-10. In the `database` folder, create a new file `database.js`.
+    ```
+    db         | CREATE DATABASE
+    db-test    | CREATE DATABASE
+    db-test    |
+    db-test    |
+    db-test    | /usr/local/bin/docker-entrypoint.sh: running /docker-entrypoint-initdb.d/init.sql
+    db         |
+    db         |
+    db         | /usr/local/bin/docker-entrypoint.sh: running /docker-entrypoint-initdb.d/init.sql
+    db-test    | CREATE TABLE
+    db-test    |
+    db-test    |
+    db-test    | 2021-03-24 01:10:34.688 UTC [47] LOG:  received fast shutdown request
+    db         | CREATE TABLE
+    db         |
+    ...
+    db-test    | 2021-03-24 01:10:34.830 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+    db-test    | 2021-03-24 01:10:34.831 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+    db         | 2021-03-24 01:10:34.844 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+    db-test    | 2021-03-24 01:10:34.846 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+    db         | 2021-03-24 01:10:34.857 UTC [85] LOG:  database system was shut down at 2021-03-24 01:10:34 UTC
+    db-test    | 2021-03-24 01:10:34.861 UTC [84] LOG:  database system was shut down at 2021-03-24 01:10:34 UTC
+    db         | 2021-03-24 01:10:34.871 UTC [1] LOG:  database system is ready to accept connections
+    db-test    | 2021-03-24 01:10:34.876 UTC [1] LOG:  database system is ready to accept connections
+    ```
+
+9.  To test that we have setup the database correctly, let us attempt to establish a connection with the database without javascript first. Type the following code into a new terminal:
+
+    ```
+    docker exec db psql -U user -d virtual_queue -c "select * from queue_tab;"
+    ```
+
+    Since it's a brand new database we should observe that there is 0 rows.
+
+    ```
+     id | served
+    ----+--------
+    (0 rows)
+    ```
+
+10. We have setup the actual `database`, we will now write javascript to establish connection with the `database` in a file named `database.js`
 11. We will be using [`node-postgres`](https://node-postgres.com/) as the interface between our application and the database. Install it by running the following command:
     ```
     npm install pg
@@ -142,7 +184,9 @@
     node
     ```
 
-    To start a new Node terminal, and then:
+    To start a new Node terminal, and then enter the following lines:
+
+    > You may have to type it out instead of copy-pasting it.
 
     ```js
     const { getPool } = require('./database/database.js');
@@ -156,13 +200,13 @@
 
     You should observe an empty array as there are no rows in the table yet.
 
-18. Now that we are able to establish connection with the actual database, we can now prepare the `db_manager` to provide us with some methods to interact with the database. Create a new directory `managers` and inside, create a file `db_manager.js` with the following lines:
+18. Now that we are able to establish connection with the actual database using JavaScript, we can now prepare the `db_manager` to provide us with some methods to interact with the database. Create a new directory `managers` and inside, create a file `db_manager.js` with the following lines:
 
-        ```js
-        const { getPool } = require('../database/database');
+    ```js
+    const { getPool } = require('../database/database');
 
-        const pool = getPool();
-        ```
+    const pool = getPool();
+    ```
 
 19. Recall that one of the basic feature of this backend is to allow enqueueing and dequeueing. We will start with enqueueing, enter the following lines into `db_manager.js`
 
@@ -186,18 +230,19 @@
 20. Next for dequeue;
 
     ```js
-    return pool
-        .query(
-            `UPDATE queue_tab 
-            SET 
-                served = true
-            WHERE id = (
-                SELECT id FROM queue_tab 
-                WHERE not served ORDER BY id LIMIT 1
-            ) 
-            RETURNING *`,
-        )
-        .then((result) => (!result.rows.length ? 0 : result.rows[0].id));
+    module.exports.dequeue = function () {
+        return pool
+            .query(
+                `UPDATE queue_tab
+                SET served = true
+                WHERE id = (
+                    SELECT id FROM queue_tab
+                    WHERE not served ORDER BY id LIMIT 1
+                )
+                RETURNING *`,
+            )
+            .then((result) => (!result.rows.length ? 0 : result.rows[0].id));
+    };
     ```
 
 21. We can once again test that the file has been set up correctly by running it on a Node terminal.
@@ -218,6 +263,8 @@
     ```
 
 22. We want to try enqueueing a few entities and check the number of rows in the database afterwards, (i.e. calling enqueueing 3 times should later show that there are 3 rows.)
+
+    > You may enter `.editor` to enter editor mode which you can copy and paste the following lines
 
     ```js
     dbManager
@@ -280,7 +327,7 @@
             return pool.query(`select * from queue_tab`);
         })
         .then(function (response) {
-            console.log(response);
+            console.log(response.rows);
         });
     ```
 
@@ -324,13 +371,16 @@
 30. Now create a new file `router.js` and add the following lines:
 
     ```js
-    const cors = require('cors');
     const { app } = require('./app');
+
+    module.exports = app; // this should always be the last line
     ```
 
     These are the modules we require to build the application.
 
-31. Let us first create a middleware to allow us to perform some testing. Enter the following lines:
+31. Let us first create a middleware to allow us to perform some testing. Enter the following lines before the `module.exports = app` line:
+
+    > There's en error introduced here deliberately, can you identify it? Can you rectify it?
 
     ```js
     app.get('/', function (req, res, next) {
@@ -352,11 +402,11 @@
     });
     ```
 
-32. Create a new file `www` this is the file we will execute to start our server, inside the file include the following lines:
+32. Create a new file `www`, this is the file we will execute to start our server, inside the file include the following lines:
 
     ```js
-    const commons = require('./commons');
-    const { app } = require('./app');
+    require('./commons'); // to load .env
+    const app = require('./router');
 
     const port = process.env.PORT || 3000;
     app.listen(port, function () {
@@ -370,6 +420,28 @@
     node ./www
     ```
 
+    You should see the following error:
+
+    ```
+    Error: Cannot find module 'express'
+    Require stack:
+    - C:\...\2122s2-backend-bare-template\app.js
+    - C:\...\2122s2-backend-bare-template\www
+        at ... {
+        code: 'MODULE_NOT_FOUND',
+        requireStack: [
+            ...
+        ]
+    }
+    ```
+
+    How do we rectify this? Run the command again after rectifying the error, you should observe the following:
+
+    ```
+    > node ./www
+    App listening to port 3000
+    ```
+
 34. If you followed the setup instructions, you should have installed the [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) plugin.
 35. Create a new folder `test` and inside create another folder `http`. Inside the `http` folder, create a new file `enqueue-dequeue.test.http` with the following lines:
 
@@ -381,18 +453,25 @@
     GET {{host}} HTTP/1.1
     ```
 
-36. You should see a `send request` on top of `POST ...`, click on it to send a HTTP request to our server.
+36. You should see a `send request` on top of `GET ...`, click on it to send a HTTP request to our server.
 
-    You should then see a success response with the JSON we specified earlier.
+    If you did not rectify the deliberate error on top, you should **not get any response at all**, at the bottom of VSCode, you should see a loading animation.
+
+    -   This implies that the REST Client is waiting for a response from the server.
+    -   This further implies that the server **DID NOT** send a response. Can you rectify it?
+
+    After rectifying, You should then see a success response with the JSON we specified earlier.
 
 37. Now we know that are app is functional, it is time to prepare the routes to hook our business logic to the app.
-38. Create a new directory `routes` and inside the folder, create a new file `queue-route.js` with the following lines:
+38. Create a new directory `routes` and inside the folder, create a new file `queue_route.js` with the following lines:
 
     ```js
     const express = require('express');
     const queueManager = require('../managers/queue_manager');
 
     const router = express.Router();
+
+    // enqueue
     router.post('/', (req, res, next) =>
         queueManager
             .enqueue()
@@ -405,14 +484,14 @@
 
     > Which API is this for? enqueue? or dequeue?
 
-39. Following the above example, create another middleware for the other API. (Hint: What's the Request Method? Which method do we call? How about the response status?)
+39. Following the above example, create another middleware for the other API. (Hint: What's the Request Method? Which manager's method do we call? How about the response status?)
 40. Back in `routes.js` add the following lines:
 
     ```js
-    // near the top of the file
+    // after: const { app } = require('./app');
     const queueRoute = require('./routes/queue_route');
 
-    // after the first middleware
+    // after: the first middleware
     app.use('/queue', queueRoute);
     ```
 
@@ -424,10 +503,42 @@
     POST {{host}}/queue HTTP/1.1
     ```
 
-42. Send the Enqueue request, using Node terminal, verify that a new row has indeed been added. Repeat this 2 steps again if you need to do a proper verification.
-43. Add another request in `enqueue-dequeue.test.http` for dequeue. Run it and check it in the Node Environment.
-44. We have successfully implemented & tested the happy flow of `enqueue` and `dequeue`.
-45. What happens if we send a request that is not defined within our app? For example:
+42. Since we've made changes to our backend, restart the backend.
+43. Send the Enqueue request.
+
+    You should observe the following response:
+
+    ```
+    HTTP/1.1 201 Created
+    X-Powered-By: Express
+    Content-Type: application/json; charset=utf-8
+    Content-Length: 17
+    ETag: W/"11-ew7NUaqKr3R9pv4A63HBVEpsxF4"
+    Date: Wed, 24 Mar 2021 01:50:34 GMT
+    Connection: close
+
+    {
+        "customer_id": 8
+    }
+    ```
+
+    **Things to note:**
+
+    -   Is your response code 200 or 201?
+
+44. Using Node terminal, verify that the new row has indeed been added.
+
+    ```js
+    const { getPool } = require('./database/database');
+    getPool()
+        .query('select * from queue_tab')
+        .then((response) => response.rows)
+        .then(console.log);
+    ```
+
+45. Add another request in `enqueue-dequeue.test.http` for dequeue. Run it and check it in the Node Terminal.
+46. We have successfully implemented & tested the happy flow of `enqueue` and `dequeue`.
+47. What happens if we send a request that is not defined within our app? For example:
 
     ```
     ### Not Found
@@ -435,9 +546,32 @@
     GET {{host}}/afjsdlfjsdl HTTP/1.1
     ```
 
-    We will now write some error handling mechanism.
+    Add the above lines into `enqueue-dequeue.test.http` and execute it, you should see the following:
 
-46. Let's first create another file `errors.js` to store our error definitions. In the file, add the following lines:
+    ```
+    HTTP/1.1 404 Not Found
+    X-Powered-By: Express
+    Content-Security-Policy: default-src 'none'
+    X-Content-Type-Options: nosniff
+    Content-Type: text/html; charset=utf-8
+    Content-Length: 150
+    Date: Wed, 24 Mar 2021 01:54:38 GMT
+    Connection: close
+
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+    <meta charset="utf-8">
+    <title>Error</title>
+    </head>
+    <body>
+    <pre>Cannot GET /afjsdlfjsdl</pre>
+    </body>
+    </html>
+    ```
+
+48. Since we want our application to only return JSON instead of HTML, we will now write some error handling mechanism.
+49. Let's first create another file `errors.js` to store our error definitions. In the file, add the following lines:
 
     ```js
     /* eslint-disable max-classes-per-file */
@@ -449,16 +583,18 @@
     module.exports.UrlNotFoundError = class UrlNotFoundError extends Error {};
     ```
 
-47. Return to `routes.js` and import the 2 error definition near the top of the file we just created:
+50. Return to `router.js` and import the 2 error definition near the top of the file we just created:
 
     ```js
-    // near the top of the file
+    // after: const queueRoute = require('./routes/queue_route');
     const { ERROR_CODE, ...errors } = require('./errors');
     ```
 
-48. Still in `routes.js` add the following lines at the bottom of the file. (Try it: What happen if you add it before the first middleware?)
+51. Still in `router.js` add the following lines at the bottom of the file. (_Try it: What happen if you add it before the first middleware?_)
 
     ```js
+    // before: module.exports = app;
+
     // 404
     app.use((req, res, next) => next(new errors.UrlNotFoundError(`${req.method} ${req.originalUrl} Not Found`)));
 
@@ -488,5 +624,6 @@
     });
     ```
 
-49. Now run the request to trigger a 404 again. Observe the difference.
-50. And that's it, you now have a minimally working backend to support enqueue and dequeue.
+52. Restart your server, now run the request to trigger a 404 again. Observe the difference.
+53. And that's it, you now have a minimally working backend to support enqueue and dequeue.
+54. You can now head over to https://github.com/ades-fsp/2122s1-backend to see the extended backend you will be given to work with on your CA1
