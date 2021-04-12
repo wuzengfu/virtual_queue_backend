@@ -395,7 +395,7 @@
                 {
                     name: 'Dequeue',
                     endpoint: '/queue',
-                    method: 'delete',
+                    method: 'DELETE',
                 },
             ],
         };
@@ -443,7 +443,7 @@
     ```
 
 34. If you followed the setup instructions, you should have installed the [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) plugin.
-35. Create a new folder `test` and inside create another folder `http`. Inside the `http` folder, create a new file `enqueue-dequeue.test.http` with the following lines:
+35. Create a new folder `tests` and inside create another folder `http`. Inside the `http` folder, create a new file `enqueue-dequeue.test.http` with the following lines:
 
     ```http
     @host = http://localhost:3000
@@ -632,32 +632,433 @@
 
 > This assumes that you have completed the above instructions
 
-1. We will be using the `jest` package to help us execute our tests. First, run the following command to install the `jest` package
+1. We will be using the `Monkey Patching` technique in the following test instructions.
+2. First, recall that one desired property of unit test is its ability to be isolated from external dependencies such as database. the `queueManager` however has an implicit dependency on the database.
+3. We will overcome this by making `queueManager` import a fake `dbManager` and control the behavior of the fake `dbManager` in order to test the behavior of `queueManager`.
+4. It is important to note that this method is possible because NodeJs caches imported modules\* and we can manipulate the cache to adjust the behavior of imported modules.
+5. Open a new node terminal by running the following command:
 
     ```
-    npm install --save-dev jest
+    node
     ```
 
-> `--save-dev` is a flag telling npm that this package is only needed during development, that is, you do not need this package to actually run the application.
-
-2. Create a new folder `tests` and in the folder create another folder named `unit` and in this folder, create a new file `queue_manager.test.js`
-
-    ```
-    tests/
-    ├─ unit/
-       ├─ queue_manager.test.js
-    ```
-
-3. To test out `jest`, in the `queue_manager.test.js` file, enter the following lines:
+6. We will first import the `dbManager` module.
 
     ```js
-    it('Should pass', function () {
-        expect(1).toBe(1);
+    const dbManager = require('./managers/db_manager');
+    ```
+
+7. We will modify it's `dequeue` function such that it will not send any sql statement to the database.
+
+    ```js
+    dbManager.dequeue = function () {
+        return Promise.resolve(12);
+    };
+    ```
+
+    > Note: when patching your functions, do pay attention to its expected return type. The `dequeue` function is expected to return a Promise, which resolves to an integer representing the customer_id. Thus I have made it such that the patched function behaves the same way.
+
+8. We know that if `dbManager.dequeue` resolves with the number `12`, by observing the implementation of `queueManager.dequeue`, then `queueManager.dequeue` should resolve with `{ customer_id: 12 }`. We will check if this is true by executing the `queueManager.dequeue` function.
+
+    ```js
+    const queueManager = require('./managers/queue_manager.js');
+    queueManager.dequeue().then(console.log);
+    ```
+
+    You should see the following:
+
+    ```
+    > queueManager.dequeue().then(console.log);
+    Promise { <pending> }
+    > { customer_id: 12 }
+    ```
+
+9. You may like to try again with another `customer_id` to get a confirmation that is it indeed based on your patched function.
+10. Instead of remembering what the expected output is, we may like to add some reporting mechanism that would report whether the test was successful or not. Run the following line:
+
+    > type .editor to enter editor mode where you can copy and paste multiline code.
+
+    ```js
+    queueManager.dequeue().then((result) => {
+        if (
+            JSON.stringify(result) ==
+            JSON.stringify({
+                customer_id: 12,
+            })
+        ) {
+            // Expected
+            console.log('✔️ queueManager.dequeue resolves correctly');
+        } else {
+            console.log('❌ queueManager.dequeue resolves incorrectly');
+        }
     });
     ```
 
-4. We can run the test by typing the following command:
+11. Sometimes, we would like to ensure that our test is working correctly by making it fail deliberately. Change the expected output's `customer_id` to `13` instead of `12`. This should fail since we know that `queueManager.dequeue` will surely return `12` instead of `13`.
+
+    ```js
+    queueManager.dequeue().then((result) => {
+        if (
+            JSON.stringify(result) ==
+            JSON.stringify({
+                customer_id: 13, // Changed from 12 to 13
+            })
+        ) {
+            console.log('✔️ queueManager.dequeue resolves correctly');
+        } else {
+            // Expected
+            console.log('❌ queueManager.dequeue resolves incorrectly');
+        }
+    });
+    ```
+
+12. At this point, you may wonder, "Whoa, do I need to do this every time I make some changes?". The answer is `Yes 🙃`, thus we should definitely do something that would allow re-running of tests easily. We can do that simply by saving the lines in a file. Create a new folder `unit` under the `tests` folder, inside the `unit` folder, create a new file `queue_manager.test.js`, and inside the file, paste the following lines:
+
+    ```js
+    const dbManager = require('../../managers/db_manager');
+    const queueManager = require('../../managers/queue_manager');
+    dbManager.dequeue = function () {
+        return Promise.resolve(12);
+    };
+    queueManager.dequeue().then((result) => {
+        if (
+            JSON.stringify(result) ==
+            JSON.stringify({
+                customer_id: 12,
+            })
+        ) {
+            console.log('✔️ queueManager.dequeue resolves correctly');
+        } else {
+            console.log('❌ queueManager.dequeue resolves incorrectly');
+        }
+    });
+    ```
+
+13. You can now rerun the test easily by running the script whenever you want to test.
 
     ```
-    npm test
+    node ./tests/unit/queue_manager.test.js
     ```
+
+14. Let us add another test. This time round, we want to test the behavior of `queueManager.dequeue` when `dbManager.dequeue` rejects instead of resolve.
+15. Before we do that, recall that a characteristic of Unit test is that one unit test should not affect another unit test, so it is always good to revert the system to initial state before proceeding to the next unit test. Make the following changes accordingly:
+
+    ```js
+    const oldDbManagerDequeue = dbManager.dequeue; // Store original implementation
+    dbManager.dequeue = function () {}; // code omitted
+    queueManager
+        .dequeue()
+        .then() // code omitted
+        .finally(function () {
+            // Do it only at the end of the test.
+            dbManager.dequeue = oldDbManagerDequeue; // Revert to original implementation
+        });
+    ```
+
+16. In our example, after patching `dbManager.dequeue`, we do not have any asynchronous operations, but suppose we do have asynchronous code and wants to ensure that a test really completes before going to the next test. We can ensure that by building some test runner like the following:
+
+    > In this module, you may choose to ignore how the test runner work.
+    > But it would be important to understand how to add a new test.
+
+    ```js
+    const _tests = [];
+    function it(description, testFn) {
+        _tests.push([description, testFn]);
+    }
+
+    function _testRunner(tests = _tests, i = 0, successCount = 0) {
+        if (i === tests.length) return console.log(`Finished running all ${i} test, result: ${successCount}/${i}`);
+        const [description, testFn] = tests[i];
+        // We expect each testFn to resolve successfully with a boolean isSuccess.
+        return testFn()
+            .then(function (isSuccess) {
+                if (isSuccess) {
+                    successCount += 1;
+                    console.log(`✔️ ${description}`);
+                } else {
+                    console.log(`❌ ${description}`);
+                }
+                return _testRunner(tests, i + 1, successCount);
+            })
+            .catch((error) => {
+                console.log('Test failed to complete with error -', error);
+            });
+    }
+
+    // use `it` to add tests
+
+    _testRunner();
+    ```
+
+17. We would then have to make the following adjustment to our existing code:
+
+    ```js
+    const dbManager = require('../../managers/db_manager');
+    const queueManager = require('../../managers/queue_manager');
+
+    const _tests = [];
+    function it(description, testFn) {
+        _tests.push([description, testFn]);
+    }
+
+    function _testRunner(tests = _tests, i = 0, successCount = 0) {
+        if (i === tests.length) return console.log(`Finished running all ${i} test, result: ${successCount}/${i}`);
+        const [description, testFn] = tests[i];
+        return testFn()
+            .then(function (isSuccess) {
+                if (isSuccess) {
+                    successCount += 1;
+                    console.log(`✔️ ${description}`);
+                } else {
+                    console.log(`❌ ${description}`);
+                }
+                return _testRunner(tests, i + 1, successCount);
+            })
+            .catch((error) => {
+                console.log('Test failed to complete with error -', error);
+            });
+    }
+
+    // Store originals
+    const oldDbManagerDequeue = dbManager.dequeue;
+    function revertDbManagerDequeue(result) {
+        dbManager.dequeue = oldDbManagerDequeue;
+        return result;
+    }
+
+    // use `it` to add tests.
+    it('should resolve dequeue correctly', function () {
+        dbManager.dequeue = function () {
+            return Promise.resolve(12);
+        };
+        // Important: Return the promise
+        return queueManager
+            .dequeue()
+            .then(
+                (result) =>
+                    JSON.stringify(result) ==
+                    JSON.stringify({
+                        customer_id: 12,
+                    }),
+            )
+            .then(revertDbManagerDequeue);
+    });
+
+    // Run the tests
+    // Important: Keep this as the last line
+    _testRunner();
+    ```
+
+18. Now we are ready to add another new test, once again, we will patch the `dbManager.dequeue` function to do what we want it to do and revert it back once we are done.
+
+    ```js
+    // before testRunner();
+    it('Should reject dequeue correctly', function () {
+        dbManager.dequeue = function () {
+            return Promise.reject('ERROR!');
+        };
+        // Important: Return the promise
+        return queueManager
+            .dequeue()
+            .then(() => false)
+            .catch((error) => error === 'ERROR!')
+            .then(revertDbManagerDequeue);
+    });
+    ```
+
+19. There you have it, the use of `Monkey Patching` to remove dependencies in order to unit test our components.
+20. We will be reusing the test runner in the integration test, so lets abstract it into a module.
+21. In the test folder, create a new file `test_driver.js` and add the following lines:
+
+    ```js
+    const _tests = [];
+    function it(description, testFn) {
+        _tests.push([description, testFn]);
+    }
+
+    function _testRunner(tests = _tests, i = 0, successCount = 0) {
+        if (i === tests.length) return console.log(`Finished running all ${i} test, result: ${successCount}/${i}`);
+        const [description, testFn] = tests[i];
+        return testFn()
+            .then(function (isSuccess) {
+                if (isSuccess) {
+                    successCount += 1;
+                    console.log(`✔️ ${description}`);
+                } else {
+                    console.log(`❌ ${description}`);
+                }
+                return _testRunner(tests, i + 1, successCount);
+            })
+            .catch((error) => {
+                console.log('Test failed to complete with error -', error);
+            });
+    }
+
+    module.exports = {
+        it,
+        run: _testRunner,
+    };
+    ```
+
+22. Modify `queue_manager.test.js` accordingly:
+
+    ```js
+    const { it, run } = require('../test_driver');
+    const dbManager = require('../../managers/db_manager');
+    const queueManager = require('../../managers/queue_manager');
+
+    // TODO: Delete _tests, it and _testRunner
+
+    // Store originals
+    const oldDbManagerDequeue = dbManager.dequeue;
+    function revertDbManagerDequeue(result) {
+        dbManager.dequeue = oldDbManagerDequeue;
+        return result;
+    }
+
+    // use `it` to add tests.
+    it('should resolve dequeue correctly', function () {});
+
+    it('Should reject dequeue correctly', function () {});
+
+    // Run the tests
+    // Important: Keep this as the last line
+
+    // TODO: Replace _testRunner with run
+    run();
+    ```
+
+## Instructions - Integration Testing
+
+1. Recall that we are going perform integration test by sending requests to an app that is connected to a fake database.
+2. Your docker has already been setup in a way that it would spin up 2 separate database `db` and `db-test`. By the settings in our `.env` file, it connects to `db`. Thus we will use `Monkey Patching` to make the app connect to `db-test`.
+3. First let us create a new folder `integration` in the `tests` folder. And inside the `integration` folder, add a file `router.test.js`
+4. We will be making use of the same test runner to ensure sequential execution of asynchronous function. So import the `it` and `run` functions from `test_runner`
+
+    ```js
+    const { it, run } = require('../test_driver');
+
+    // We will call run() only after the server has started at a later step.
+    ```
+
+5. Next, we will patch the `database.js` file such that it connects to `db-test` instead of `db`. Add the following line into the file:
+
+    ```js
+    const { Client } = require('pg');
+    const database = require('../../database/database');
+    const client = new Client({
+        host: process.env.DB_HOST,
+        port: process.env.DB_TEST_PORT, // DB_TEST_PORT instead of DB_PORT
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_DATABASE,
+    });
+    database.getPool = function () {
+        return client;
+    };
+    ```
+
+6. NodeJs by default does not have `fetch`. Let us install the `node-fetch` module
+
+    ```
+    npm install --save-dev node-fetch
+    ```
+
+    > Once again, node-fetch is used only during development and testing, and not needed otherwise, so we use the --save-dev flag.
+
+7. We can now write a simple 404 test.
+
+    ```js
+    const fetch = require('node-fetch');
+    const testPort = 3456;
+    const url = `http://localhost:${testPort}`;
+    it('Should respond with status = 404', function () {
+        fetch(`${url}/fsldkjflsdjflksd`).then((response) => response.status == 404);
+    });
+    ```
+
+8. Run this test to see that it is successful.
+
+    ```
+    node test .\tests\integration\router.test.js
+    ```
+
+9. Before we can run this, we need to run the application and run the test runner. Do that by adding the following:
+
+    ```js
+    // at the bottom of the file.
+    const app = require('../../router.js');
+    // Create server connection
+    const server = app.listen(testPort, function (error) {
+        if (error) {
+            client.end();
+            return console.log(error);
+        }
+        run()
+            .catch(console.log) // Simply console.log any errors
+            .finally(() => client.end()) // Close database connection
+            .then(() => server.close()); // Close server connection
+    });
+    ```
+
+10. Before we run any test, we may want to delete everything in the database first to ensure a clean state. To do so, we can make the following modification:
+
+    ```js
+    // at the bottom of the file.
+    const app = require('../../router.js');
+    // Create server connection
+    const server = app.listen(testPort, function (error) {
+        if (error) {
+            client.end();
+            return console.log(error);
+        }
+        client
+            .connect() // Connect to database
+            .then(() => client.query(`TRUNCATE queue_tab RESTART IDENTITY;`))
+            .then(() => run())
+            .catch(console.log) // Simply console.log any errors
+            .finally(() => client.end()) // Close database connection
+            .then(() => server.close()); // Close server connection
+    });
+    ```
+
+11. Now to test something that actually hits the database. We can try some enqueue.
+
+    ```js
+    it('Should enqueue first customer with customer_id = 1', function () {
+        return fetch(`${url}/queue`, { method: 'POST' })
+            .then((response) => response.json())
+            .then((json) => json.customer_id === 1); // Identity equality to ensure numerical type
+    });
+    ```
+
+12. Run this test to see that it is successful.
+
+    ```
+    node test .\tests\integration\router.test.js
+    ```
+
+13. One more test for a double confirmation.
+
+    ```js
+    it('Should enqueue second customer with customer_id = 2', function () {
+        return fetch(`${url}/queue`, { method: 'POST' })
+            .then((response) => response.json())
+            .then((json) => json.customer_id === 2); // Identity equality to ensure numerical type
+    });
+    ```
+
+14. We may wish to test dequeue also.
+
+    ```js
+    it('Should dequeue first customer with customer_id = 1', function () {
+        return fetch(`${url}/queue`, { method: 'DELETE' })
+            .then((response) => response.json())
+            .then((json) => json.customer_id === 1); // Identity equality to ensure numerical type
+    });
+    ```
+
+15. Test it and then design a scenario to test what happens when you dequeue when the queue is empty.
+16. Design another scenario to test that the `customer_id` does not decrease when the queue is dequeued.
+17. And there you have it, an automated integration test that uses a test database.
+18. You may wish to explore libraries such as `jest` (Provided in template repository) which provides more features beyond our simple test runner to facilitate processes such as error reporting.
