@@ -627,3 +627,37 @@
 52. Restart your server, now run the request to trigger a 404 again. Observe the difference.
 53. And that's it, you now have a minimally working backend to support enqueue and dequeue.
 54. You can now head over to https://github.com/ades-fsp/2122s1-backend to see the extended backend you will be given to work with on your CA1
+
+## Instructions - Unit Testing
+
+> This assumes that you have completed the above instructions
+
+1. We will be using the `jest` package to help us execute our tests. First, run the following command to install the `jest` package
+
+    ```
+    npm install --save-dev jest
+    ```
+
+> `--save-dev` is a flag telling npm that this package is only needed during development, that is, you do not need this package to actually run the application.
+
+2. Create a new folder `tests` and in the folder create another folder named `unit` and in this folder, create a new file `queue_manager.test.js`
+
+    ```
+    tests/
+    ├─ unit/
+       ├─ queue_manager.test.js
+    ```
+
+3. To test out `jest`, in the `queue_manager.test.js` file, enter the following lines:
+
+    ```js
+    it('Should pass', function () {
+        expect(1).toBe(1);
+    });
+    ```
+
+4. We can run the test by typing the following command:
+
+    ```
+    npm test
+    ```
