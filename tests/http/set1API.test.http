@@ -1,0 +1,7 @@
+@host = http://localhost:3000
+
+### GET /queue
+GET {{host}}/queue HTTP/1.1
+
+### GETdock /stats/arrivals
+GET {{host}}/stats/arrivals?from=2021-05-05T08:20:22&duration=5
