@@ -39,7 +39,7 @@ module.exports.getArrivals = function (fromTimestamp, toTimestamp) {
 
 //feature 2: GET /queue
 module.exports.getQueue = function () {
-    return pool.query(`SELECT id AS customer_id, arrival_timestamp AS arrival
+    return pool.query(`SELECT id, arrival_timestamp
                        FROM queue_tab
                        WHERE served = false`)
         .then(result => result.rows);
