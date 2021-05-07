@@ -1,11 +1,11 @@
 DROP TABLE IF EXISTS queue_tab;
-DROP INDEX IF EXISTS timestamp_key;
+DROP INDEX IF EXISTS arrival_timestamp_key;
 CREATE TABLE queue_tab (
     id SERIAL primary key,
     served BOOLEAN not null default false,
     arrival_timestamp INT not null
 );
-CREATE INDEX timestamp_key ON queue_tab (arrival_timestamp);
+CREATE INDEX arrival_timestamp_key ON queue_tab (arrival_timestamp);
 
 DROP INDEX IF EXISTS timestamp_key;
 DROP TABLE IF EXISTS error_tab;
