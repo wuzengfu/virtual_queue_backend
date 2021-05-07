@@ -6,9 +6,7 @@ module.exports.getArrivals = function (from, duration) {
     try {
         const [fromTimestamp, toTimestamp] = utils.getFromAndToTimestamp(from, duration);
         return databaseManager.getArrivals(fromTimestamp, toTimestamp)
-            .then(rows => {
-                return rows.map(row => row.arrival_timestamp);
-            });
+            .then(rows => rows.map(row => row.arrival_timestamp));
     } catch (error) {
         return Promise.reject(error);
     }
