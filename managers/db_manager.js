@@ -41,7 +41,9 @@ module.exports.getArrivals = function (fromTimestamp, toTimestamp) {
 module.exports.getQueue = function () {
     return pool.query(`SELECT id, arrival_timestamp
                        FROM queue_tab
-                       WHERE served = false`)
+                       WHERE served = false
+                       ORDER BY arrival_timestamp
+                       `)
         .then(result => result.rows);
 };
 
