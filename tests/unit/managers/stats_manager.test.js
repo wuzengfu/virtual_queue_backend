@@ -67,4 +67,40 @@ it('Should reject with rejected value', function () {
         .then(revertStatsManagerGetErrorLogs);
 });
 
+//feature 1: Get /stats/arrivals
+console.log("Getting Arrival Rates");
+const revertStatsManagerGetArrivals = makeRevertFunction(databaseManager, 'getArrivals');
+function testGetArrivalsSuccess(description, databaseResponseValue) {
+    it(description, function () {
+        const output = databaseResponseValue.map((row) => row.arrival_timestamp);
+        databaseManager.getArrivals = function () {
+            return Promise.resolve(databaseResponseValue);
+        }
+        return statsManager
+            .getArrivals('2021-03-28T18:30:00', 1)
+            .then((result) => JSON.stringify(result) === JSON.stringify(output))
+            .then(revertStatsManagerGetArrivals);
+    });
+}
+
+testGetArrivalsSuccess('GetArrivals should return empty array correctly', []);
+testGetArrivalsSuccess('GetArrivals should return array with 1 entry correctly', [
+    {arrival_timestamp: 123},
+]);
+testGetArrivalsSuccess('GetArrivals should return array with multiple entry correctly', [
+    {arrival_timestamp: 123},
+    {arrival_timestamp: 234},
+    {arrival_timestamp: 345},
+]);
+it('GetArrivals should reject with rejected value', function () {
+    const databaseResponseValue = {error: 'hello'};
+    databaseManager.getArrivals = function () {
+        return Promise.reject(databaseResponseValue);
+    };
+    return statsManager.getArrivals('2021-03-28T18:30:00', 1)
+        .then(() => false)
+        .catch((error) => error === databaseResponseValue)
+        .then(revertStatsManagerGetArrivals);
+});
+
 run();
