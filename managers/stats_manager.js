@@ -3,13 +3,14 @@ const databaseManager = require('./db_manager');
 
 //feature 1: GET /stats/arrival
 module.exports.getArrivals = function (from, duration) {
-    try {
-        const [fromTimestamp, toTimestamp] = utils.getFromAndToTimestamp(from, duration);
-        return databaseManager.getArrivals(fromTimestamp, toTimestamp)
-            .then(rows => rows.map(row => row.arrival_timestamp));
-    } catch (error) {
-        return Promise.reject(error);
-    }
+    const {
+        error,
+        fromTimestamp,
+        toTimestamp
+    } = utils.getFromAndToTimestampInErrorObject(from, duration);
+    if (error) return Promise.reject(error);
+    return databaseManager.getArrivals(fromTimestamp, toTimestamp)
+        .then(rows => rows.map(row => row.arrival_timestamp));
 };
 
 /**
