@@ -117,11 +117,13 @@ it('getArrivals should respond with 400 if parameters are invalid', function (){
         )
         .then(() => fetch(`${url}/stats/errors?from=${from}&duration=3`))
         .then(response => response.json())
-        .then(json =>
-            json.every(
-                errorLog =>
-                    errorLog.payload && errorLog.payload.code === ERROR_CODE.INVALID_QUERY_PARAMETER && errorLog.status_code === 400
-            )
+        .then(json => {
+                if (json.length !== 3) return false;
+                return json.every(
+                    errorLog =>
+                        errorLog.payload && errorLog.payload.code === ERROR_CODE.INVALID_QUERY_PARAMETER && errorLog.status_code === 400
+                )
+            }
         );
 });
 
