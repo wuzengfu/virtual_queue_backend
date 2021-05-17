@@ -1,0 +1,4 @@
+@host = http://localhost:3000
+
+### GET /stats/departures
+GET {{host}}/stats/departures?from=2021-05-17T09:26:00&duration=5
