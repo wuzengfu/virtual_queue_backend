@@ -13,6 +13,17 @@ module.exports.getArrivals = function (from, duration) {
         .then(rows => rows.map(row => row.arrival_timestamp));
 };
 
+//feature 4: GET /stats/departures
+module.exports.getDepartures = function (from, duration) {
+    try {
+        const [fromTimestamp, toTimestamp] = utils.getFromAndToTimestamp(from, duration);
+        return databaseManager.getDepartures(fromTimestamp, toTimestamp)
+            .then(rows => rows.map(row => row.departure_timestamp));
+    } catch (error) {
+        return Promise.reject(error);
+    }
+};
+
 /**
  * Error Logging
  */
