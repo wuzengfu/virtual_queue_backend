@@ -16,6 +16,19 @@ router.get('/arrivals', (req, res, next) => {
         .catch(next);
 });
 
+//feature 4: GET /stats/departures
+router.get('/departures', (req, res, next) => {
+    const {
+        from,
+        duration
+    } = req.query;
+
+    return statsManager.getDepartures(from, duration)
+        .then((response) => res.status(200)
+            .json(response))
+        .catch(next);
+});
+
 router.get('/errors', (req, res, next) => {
     const {
         from,
