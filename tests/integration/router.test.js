@@ -104,27 +104,30 @@ function resetQueueTab() {
 it('getArrivals should respond with 400 if parameters are invalid', function (){
     const from = encodeURIComponent(now().subtract(1, 'minute').format(DATE_FORMAT));
 
-    const invalidFromParameter = `${url}/stats/arrivals?from=${'asdlgjop'}&duration=3`;
-    const invalidDurationParameter1 = `${url}/stats/arrivals?from=${from}&duration=0`;
-    const invalidDurationParameter2 = `${url}/stats/arrivals?from=${from}&duration=2000`;
+    const invalidFromParameter = `${url}/stats/arrivals?from=${'NaN'}&duration=3`; //when from is not a number
+    const invalidDurationParameter1 = `${url}/stats/arrivals?from=${from}&duration=0`; //when duration is < 1
+    const invalidDurationParameter2 = `${url}/stats/arrivals?from=${from}&duration=2000`; //when duration is > 1440
+    const invalidDurationParameter3 = `${url}/stats/arrivals?from=${from}&duration=NaN`; //when duration is not a number
+
+    const errorTestingArray = [
+        fetch(invalidFromParameter),
+        fetch(invalidDurationParameter1),
+        fetch(invalidDurationParameter2),
+        fetch(invalidDurationParameter3)]
+    ;
 
     return resetErrorTab()
-        .then(() => Promise.all(
-            [fetch(invalidFromParameter)],
-            [fetch(invalidDurationParameter1)],
-            [fetch(invalidDurationParameter2)]
-            )
-        )
+        .then(() => Promise.all(errorTestingArray))
         .then(() => fetch(`${url}/stats/errors?from=${from}&duration=3`))
         .then(response => response.json())
         .then(json => {
-                if (json.length !== 3) return false;
+                if (json.length !== errorTestingArray.length) return false;
                 return json.every(
                     errorLog =>
                         errorLog.payload && errorLog.payload.code === ERROR_CODE.INVALID_QUERY_PARAMETER && errorLog.status_code === 400
                 )
             }
-        );
+        )
 });
 
 it('getArrivals should return empty array when no record is found', function () {
