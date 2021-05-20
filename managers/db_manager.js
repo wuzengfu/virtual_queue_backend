@@ -48,12 +48,32 @@ module.exports.getQueue = function () {
         .then(result => result.rows);
 };
 
-//feature 4: GET /departures
+//feature 4: GET /stats/departures
 module.exports.getDepartures = function (fromTimestamp, toTimestamp) {
     const conditions = [`departure_timestamp >= $1`, `departure_timestamp < $2`];
     const params = [fromTimestamp, toTimestamp];
     const query = `SELECT departure_timestamp
                    FROM queue_tab
+                   WHERE ${conditions.join(' AND ')}`;
+    return pool.query(query, params)
+        .then(result => result.rows);
+};
+
+//feature 5: PUT /stats/lengths
+module.exports.putLengths = function () {
+    const query = `INSERT INTO queue_lengths_tab (timestamp, length) 
+                   VALUES (cast(extract(epoch from CURRENT_TIMESTAMP(0)) as integer), 
+                   (SELECT COUNT(served) FROM queue_tab WHERE served = false))`;
+    return pool.query(query)
+        .then(result => result.rows);
+};
+
+//feature 5: GET /stats/lengths
+module.exports.getLengths = function (fromTimestamp, toTimestamp) {
+    const conditions = [`timestamp >= $1`, `timestamp < $2`];
+    const params = [fromTimestamp, toTimestamp];
+    const query = `SELECT timestamp, length
+                   FROM queue_lengths_tab
                    WHERE ${conditions.join(' AND ')}`;
     return pool.query(query, params)
         .then(result => result.rows);

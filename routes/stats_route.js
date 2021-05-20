@@ -29,6 +29,30 @@ router.get('/departures', (req, res, next) => {
         .catch(next);
 });
 
+//feature 5: PUT /stats/lengths
+router.put('/lengths', (req, res, next) => {
+    const {
+        duration,
+        interval
+    } = req.query;
+
+    statsManager.putLengths(duration, interval)
+    res.send();
+});
+
+//feature 5: GET /stats/lengths
+router.get('/lengths', (req, res, next) => {
+    const {
+        from,
+        duration
+    } = req.query;
+
+    return statsManager.getLengths(from, duration)
+        .then((response) => res.status(200)
+            .json(response))
+        .catch(next);
+});
+
 router.get('/errors', (req, res, next) => {
     const {
         from,
