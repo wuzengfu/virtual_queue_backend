@@ -10,6 +10,14 @@ CREATE TABLE queue_tab (
 CREATE INDEX arrival_timestamp_key ON queue_tab (arrival_timestamp);
 CREATE INDEX departure_timestamp_key ON queue_tab (departure_timestamp);
 
+CREATE TABLE queue_lengths_tab (
+    id SERIAL primary key,
+    timestamp INT not null,
+    length INT not null
+);
+CREATE INDEX timestamp_key ON queue_lengths_tab (timestamp);
+CREATE INDEX length_key ON queue_lengths_tab (length);
+
 DROP INDEX IF EXISTS timestamp_key;
 DROP TABLE IF EXISTS error_tab;
 CREATE TABLE error_tab (

@@ -24,6 +24,33 @@ module.exports.getDepartures = function (from, duration) {
     }
 };
 
+//feature 5: PUT /stats/lengths
+module.exports.putLengths = function (duration, interval) {
+    try {
+        var runInterval = setInterval(databaseManager.putLengths, interval * 1000);
+        setTimeout(intervalClear, duration * 1000 * 60);
+        function intervalClear() {
+            clearInterval(runInterval)
+        }        
+    } catch (error) {
+        return Promise.reject(error);
+    }
+};
+
+//feature 5: GET /stats/lengths
+module.exports.getLengths = function (from, duration) {
+    try {
+        const [fromTimestamp, toTimestamp] = utils.getFromAndToTimestamp(from, duration);
+        return databaseManager.getLengths(fromTimestamp, toTimestamp)
+            .then(rows => rows.map(row => ({
+                "timestamp": row.timestamp,
+                "length":row.length
+            })));
+    } catch (error) {
+        return Promise.reject(error);
+    }
+};
+
 /**
  * Error Logging
  */

@@ -12,7 +12,8 @@
         "start": "node ./www.js",
         "dev": "nodemon ./www.js",
         "start-db": "docker-compose down && docker-compose up -d --force-recreate",
-        "eslint": "npx eslint **/*.js"
+        "eslint": "npx eslint **/*.js",
+        "restart": "docker-compose down && docker-compose up -d --force-recreate && node ./www.js"
     },
     "author": "",
     "license": "ISC",
