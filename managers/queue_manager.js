@@ -27,3 +27,11 @@ module.exports.getQueue = function () {
             });
         });
 };
+
+// module.exports.processing_time = function () {
+//     return dbManager.getProcessingTime().then((timestamp, duration) => ({
+//         timestamp: timestamp,
+//         duration: duration
+//     })) ;
+// };
+

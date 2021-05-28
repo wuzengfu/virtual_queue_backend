@@ -93,3 +93,23 @@ module.exports.getErrorLogs = function (fromTimestamp, toTimestamp) {
     return pool.query(query, params)
         .then((result) => result.rows);
 };
+
+//feature 7: GET /stats/processing-time
+
+module.exports.getProcessingTime = function (fromTimestamp, toTimestamp) {
+    const conditions = [`timestamp >= $1`, `timestamp < $2`];
+    const params = [fromTimestamp, toTimestamp];
+    const query = `SELECT * FROM processing_time_tab WHERE ${conditions.join(' AND ')}`;
+    return pool.query(query, params).then((result) => result.rows);
+};
+
+
+
+
+module.exports.logProcessingTime = function (duration, request) {
+    return pool.query(
+        `INSERT INTO processing_time_tab (duration, timestamp, request)
+        VALUES ($1, cast(extract(epoch from CURRENT_TIMESTAMP(0)) as integer), $2);`,
+        [duration, request],
+    );
+};

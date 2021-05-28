@@ -65,4 +65,16 @@ router.get('/errors', (req, res, next) => {
         .catch(next);
 });
 
+//Feauture 7
+router.get('/processing-time', (req, res, next) => {
+    const {
+        from,
+        duration
+    } = req.query;
+    return statsManager
+        .getProcessingTime(from, duration)
+        .then((response) => res.json(response))
+        .catch(next);
+});
+
 module.exports = router;

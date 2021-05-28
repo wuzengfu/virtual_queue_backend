@@ -31,7 +31,7 @@ module.exports.putLengths = function (duration, interval) {
         setTimeout(intervalClear, duration * 1000 * 60);
         function intervalClear() {
             clearInterval(runInterval)
-        }        
+        }
     } catch (error) {
         return Promise.reject(error);
     }
@@ -44,7 +44,7 @@ module.exports.getLengths = function (from, duration) {
         return databaseManager.getLengths(fromTimestamp, toTimestamp)
             .then(rows => rows.map(row => ({
                 "timestamp": row.timestamp,
-                "length":row.length
+                "length": row.length
             })));
     } catch (error) {
         return Promise.reject(error);
@@ -84,5 +84,17 @@ module.exports.getErrors = function (from, duration) {
             timestamp,
             status_code: statusCode,
             payload: JSON.parse(payload),
-        })),);
+        })));
 };
+
+module.exports.getProcessingTime = function (from, duration) {
+    const { error, fromTimestamp, toTimestamp } = utils.getFromAndToTimestampInErrorObject(from, duration);
+    if (error) return Promise.reject(error);
+    return databaseManager.getProcessingTime(fromTimestamp, toTimestamp).then((rows) =>
+        rows.map(({ timestamp, duration }) => ({
+            timestamp,
+            duration,
+        })),
+    );
+};
+

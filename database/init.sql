@@ -26,5 +26,14 @@ CREATE TABLE error_tab (
     status_code INT not null,
     payload TEXT not null
 );
+
+DROP TABLE IF EXISTS processing_time_tab;
+CREATE TABLE processing_time_tab (
+    id SERIAL primary key,
+    duration INT not null,
+    timestamp INT not null,
+    request VARCHAR(10)
+);
+
 CREATE INDEX timestamp_key ON error_tab (timestamp);
 

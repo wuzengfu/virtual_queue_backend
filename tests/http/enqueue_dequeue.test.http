@@ -9,3 +9,6 @@ DELETE {{host}}/queue HTTP/1.1
 
 ### Not Found
 GET {{host}}/afjsdlfjsdl HTTP/1.1
+
+###
+GET {{host}}/stats/processing-time?from=2021-05-28T02:12:00&duration=3 HTTP/1.1
